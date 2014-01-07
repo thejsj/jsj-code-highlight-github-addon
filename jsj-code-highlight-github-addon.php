@@ -19,6 +19,8 @@ $jsj_code_highlight_github_addon = new JSJCodeHighlightGithubAddon();
 class JSJCodeHighlightGithubAddon {
 
 	public $api = null;
+	public $name_space = "jsj_code_highlight_github_addon";
+	public $parent_name_space = "jsj_code_highlight";
 
 	/**
 	 * Populate a couple of variables and hook all wordpress actions and filters
@@ -28,11 +30,10 @@ class JSJCodeHighlightGithubAddon {
 	public function __construct(){
 
 		// Init Set All Plugin Variables
-		add_action('jsj_code_highlight/add_admin_formatting', array($this, 'add_admin_options') );
+		add_action($this->parent_name_space . '/add_admin_options', array($this, 'add_admin_options') );
 
 		// Get Settings
-		$this->user_name; 
-
+		// $this->user_name; 
 
 		// Add Shortcode
 		add_shortcode('jsj-code', array($this, 'code_shortcode'));
@@ -49,7 +50,27 @@ class JSJCodeHighlightGithubAddon {
 	 */
 	public function add_admin_options(){ ?>
 		
-		<h2>Github Settings</h2>
+		<h3>Github Settings</h3>
+
+		<div class="<?php echo $this->parent_name_space; ?>-options_box">
+			<p>In order for this plugin to work, it must be propertly configured with the <a href="#">JSJ Code Highlight API</a>.</p>
+			<!-- This box will be hidden if this plugin is properly configured -->
+			<div class="<?php echo $this->parent_name_space; ?>-registration_box">
+				<h4>Plesase Register your Github username.</h4>
+				<p>In order for this plugin to work correctly, you must register <a href="#">here</a>. This will create the necessary tokens to communicate with the GitHub API.</p>
+			</div>
+
+			<table>
+				<tr>
+					<td>Github Username</td>
+					<td>Plugin Key</td>
+				</tr>
+				<tr>
+					<td><input type="text" name="" value="" placeholder="thejsj"/></td>
+					<td><input type="text" name="" value="" placeholder="This doesn't work"/></td>
+				</tr>
+			</table>
+		</div>
 
 	<? }
 
