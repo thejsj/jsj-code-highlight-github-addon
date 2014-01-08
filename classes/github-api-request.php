@@ -2,13 +2,13 @@
 
 class GitHubApiRequest {
 
-	private $api_url    = 'http://jsj-code-highlight-api.thejsj.webfactional.com/';
 	private $user_agent = "JSJ-Code-Highlight";
 	private $max_redirs = 10; 
 	private $timeout = 10; 
 
-	public function __construct($user_name){
+	public function __construct($user_name, $url){
 		$this->user_name = $user_name;
+		$this->api_url = $url; // Comes from main addon php file
 		$this->user_exists = $this->check_if_user_exists(); // Also appends scopes and created_at timestamp
 	}
 
@@ -93,13 +93,14 @@ class GitHubApiRequest {
 	 * @return string
 	 */
 	private function append_get_statements($url, $parameters = false){
-		
 		if(!$parameters)
-			return $url; 
+			return $url;
 
+		$sign = '?';
 		foreach($parameters as $key => $variable){
 			if(isset($variable) && $variable){
-				$url .= '?' . $key . '=' . $variable; 
+				$url .= $sign . $key . '=' . $variable; 
+				$sign = '&'; // Change sign, once it's been used
 			}
 		}
 		return $url; 

@@ -10,7 +10,27 @@ Version: 0.1
 Author URI: http://thejsj.com
 
  * * * * * * * * */
+/*
 
+1. Check if user exits with API
+
+- User Exists
+
+- Get Message From Server
+
+- Get if can't find server message
+
+- Default to false
+
+2. Add Shortcodes
+
+- Add shortcodes for gist
+
+- Add shortcodes for file
+
+- Add shortcode for lines requested
+
+*/
 // Include Settings Files
 require( plugin_dir_path( __FILE__ ) . '/classes/github-api-request.php');
 
@@ -21,6 +41,7 @@ class JSJCodeHighlightGithubAddon {
 	public $api = null;
 	public $name_space = "jsj_code_highlight_github_addon";
 	public $parent_name_space = "jsj_code_highlight";
+	public $api_url = 'http://jsj-code-highlight-api.thejsj.webfactional.com/';
 
 	/**
 	 * Populate a couple of variables and hook all wordpress actions and filters
@@ -30,8 +51,6 @@ class JSJCodeHighlightGithubAddon {
 	public function __construct(){
 
 		global $jsj_code_highlight_options;
-
-
 
 		// Include Settings Files
 		require( plugin_dir_path( __FILE__ ) . '/jsj-code-highlight-github-addon-settings.php');
@@ -74,7 +93,7 @@ class JSJCodeHighlightGithubAddon {
 
 		// Once we have user settings (their github username and Licencse Key)
 		// Make An API call to verigy them
-		$this->api = new GitHubApiRequest($this->settings['github_username']->value);
+		$this->api = new GitHubApiRequest($this->settings['github_username']->value, $this->api_url);
 	}
 
 	/**
@@ -92,13 +111,12 @@ class JSJCodeHighlightGithubAddon {
 
 			<?php if($this->api->user_exists): ?>
 				<div class="<?php echo $this->parent_name_space; ?>-registration_box active">
-					<h4>Configuation Complete</h4>
+					<p><strong>Configuation Complete: </strong>User with corresponding token found in API database.</p>
 				</div>
 			<?php else: ?>
 				<!-- This box will be hidden if this plugin is properly configured -->
 				<div class="<?php echo $this->parent_name_space; ?>-registration_box inactive">
-					<h4>Plesase Register your Github username.</h4>
-					<p>In order for this plugin to work correctly, you must register <a href="#">here</a>. This will create the necessary tokens to communicate with the GitHub API.</p>
+					<p><strong>Plesase Register your Github username:</strong> In order for this plugin to work correctly, you must register <a href="#">here</a>. This will create the necessary tokens to communicate with the GitHub API.</p>
 				</div>
 			<?php endif; ?>
 
@@ -132,15 +150,94 @@ class JSJCodeHighlightGithubAddon {
 	 * @return string
 	 */
 	public function code_shortcode($atts, $content = ""){
-		// Populate 
-		if(!$api)
-			$api = new GitHubApiRequest($user_name);
+		
+		// Init the API if not defined
+		if(!$this->api)
+			$this->api = new GitHubApiRequest($user_name);
 
-		if($api->user_exists){
-			$response =  $api->get_gist(8126742); 
+		// Make Api Request if user exists
+		if(!$this->api->user_exists)
+			return "<!-- JSJ Code Highlight Github Addon : Addon not properly configured. User does not exist in API. Please register user at: " . $this->api_url . " -->";
+		
+		// List all posiblities for this shortcode, for future reference
+		extract( shortcode_atts( array(
+			'type' => false,    // gist, repo
+			'id' => false, // gist id
+			'repo' => false,    // path to file in repo
+			'path' => false,    // path to file in repo
+			'lines' => false,   // hypehn separated values for lines 7-10
+		), $atts ) );
+
+		// Make API Call
+		if($type == "gist" && $id != false){
+			$response =  $this->api->get_gist($id); 
+		}
+		else if($type == "repo" && $repo != false && $path != false){
+			$response =  $this->api->get_single_file_in_repo($repo, $path);
+		}
+		else {
+			return "<!-- JSJ Code Highlight Github Addon : Not enough parameters provided to make an API call. Check you have all the necessary paramters set in your shortcode -->";
 		}
 
-		return json_encode($response->content_lines);
+		// Parse Response into HTML
+		if($response->response == "success"){
+
+			// Parse Line Numbers
+			$beginning_line = 0;
+			$ending_line = count($response->content_lines);
+			if($lines){
+				$line_numbres = preg_split('/-/', $lines);
+				$beginning_line = max($beginning_line, $line_numbres[0] - 1); // Convert to 0 based
+				$ending_line = min($ending_line , $line_numbres[1] ); // Conver to 0 based
+			}
+			$numbers_of_lines = $ending_line - $beginning_line;
+			$code = array_slice($response->content_lines, $beginning_line, $numbers_of_lines); 
+
+			// Remove Whitesapce
+			if($lines){
+				$code = $this->remove_whitespace_at_beggining($code);
+			}
+
+			// Parse Document
+			$html  = "<pre>";
+			$html .= "	<code>";
+			$html .= implode("\n<!-- -->", $code);
+			$html .= "	  </code>";
+			$html .= "</pre>";
+		}
+		else {
+			return "<!-- JSJ Code Highlight Github Addon : The API server returned an error -->";
+		}
+		return $html;
+	}
+
+	/**
+	 * Remove Extra whitesapce at begginning of lines
+	 *
+	 * @return string
+	 */
+	public function remove_whitespace_at_beggining($code){
+		// Remove Extra Tabs/Spaces from code 
+		$first_line = str_split($code[0]); 
+		$first_line_char = $first_line[0];
+		// Check if first char in first line is tab or space
+		if(ctype_space($first_line_char)){
+			$min_indentation = 999; 
+			// Get Minimum Whitespace
+			foreach($code as $line){
+				if($line != "" && !ctype_space($line)){
+					$pattern = '/^[ '. $first_line_char .' ]*/';
+					preg_match($pattern, $line, $matches, PREG_OFFSET_CAPTURE);
+					$min_indentation = min($min_indentation, strlen($matches[0][0]));
+				}
+			}
+			// Remove whitespace from string
+			foreach($code as $key => $line){
+				$pattern = '/^[ '. $first_line_char .' ]{0,' . $min_indentation . '}/';
+				$code[$key] = preg_replace($pattern, '', $line);
+			}
+		}
+		return $code;
 	}
 
 }
