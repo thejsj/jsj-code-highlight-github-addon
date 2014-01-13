@@ -64,6 +64,9 @@ class JSJCodeHighlightGithubAddon {
 		// Get Settings from Plugin
 		add_action($this->parent_name_space . '/get_settings', array($this, 'get_settings') );
 
+		// Add Tab to Settings Page
+		add_action($this->parent_name_space . '/add_tab', array($this, 'add_tab') );
+
 		// Init Set All Plugin Variables
 		add_action($this->parent_name_space . '/add_admin_options', array($this, 'add_admin_options') );
 
@@ -96,50 +99,59 @@ class JSJCodeHighlightGithubAddon {
 		$this->api = new GitHubApiRequest($this->settings['github_username']->value, $this->api_url);
 	}
 
+	public function add_tab(){ ?>
+		<a class="nav-tab" href="?page=<?php echo $this->parent_name_space; ?>&amp;tab=github-settings"><?php _e('GitHub Settings', 'jsj_code_highlight' ); ?></a>
+	<?php }
+
 	/**
 	 * Add a box for options
 	 *
 	 * @return void
 	 */
-	public function add_admin_options(){ ?>
+	public function add_admin_options($options_tab){ ?>
+
+		<!-- Tab #2 -->
+		<div class="<?php echo $this->parent_name_space; ?>-tab-content <?php echo (($options_tab == 'github-settings') ? 'active' : 'disabled' );?>">
 		
-		<h3>Github Settings</h3>
+			<h3>Github Settings</h3>
 
-		<div class="<?php echo $this->parent_name_space; ?>-options_box">
-			<p>In order for this plugin to work, it must be propertly configured with the <a href="#">JSJ Code Highlight API</a>.</p>
-			
+			<div class="<?php echo $this->parent_name_space; ?>-options_box">
+				<p>In order for this plugin to work, it must be propertly configured with the <a href="#">JSJ Code Highlight API</a>.</p>
+				
 
-			<?php if($this->api->user_exists): ?>
-				<div class="<?php echo $this->parent_name_space; ?>-registration_box active">
-					<p><strong>Configuation Complete: </strong>User with corresponding token found in API database.</p>
-				</div>
-			<?php else: ?>
-				<!-- This box will be hidden if this plugin is properly configured -->
-				<div class="<?php echo $this->parent_name_space; ?>-registration_box inactive">
-					<p><strong>Plesase Register your Github username:</strong> In order for this plugin to work correctly, you must register <a href="#">here</a>. This will create the necessary tokens to communicate with the GitHub API.</p>
-				</div>
-			<?php endif; ?>
+				<?php if($this->api->user_exists): ?>
+					<div class="<?php echo $this->parent_name_space; ?>-registration_box active">
+						<p><strong>Configuation Complete: </strong>User with corresponding token found in API database.</p>
+					</div>
+				<?php else: ?>
+					<!-- This box will be hidden if this plugin is properly configured -->
+					<div class="<?php echo $this->parent_name_space; ?>-registration_box inactive">
+						<p><strong>Plesase Register your Github username:</strong> In order for this plugin to work correctly, you must register <a href="#">here</a>. This will create the necessary tokens to communicate with the GitHub API.</p>
+					</div>
+				<?php endif; ?>
 
-			<table>
-				<tr>
-					<td>Github Username</td>
-					<td>Plugin Key</td>
-				</tr>
-				<tr>
-					<td>
-						<input type="text" 
-							name="<?php echo $this->settings['github_username']->name_space; ?>" 
-							value="<?php echo $this->settings['github_username']->value; ?>" 
-							placeholder="thejsj"/>
-					</td>
-					<td>
-						<input type="text" 
-							name="<?php echo $this->settings['github_addon_api_key']->name_space; ?>" 
-							value="<?php echo $this->settings['github_addon_api_key']->value; ?>" 
-							placeholder="This doesn't work"/>
-					</td>
-				</tr>
-			</table>
+				<table>
+					<tr>
+						<td>Github Username</td>
+						<td>Plugin Key</td>
+					</tr>
+					<tr>
+						<td>
+							<input type="text" 
+								name="<?php echo $this->settings['github_username']->name_space; ?>" 
+								value="<?php echo $this->settings['github_username']->value; ?>" 
+								placeholder="thejsj"/>
+						</td>
+						<td>
+							<input type="text" 
+								name="<?php echo $this->settings['github_addon_api_key']->name_space; ?>" 
+								value="<?php echo $this->settings['github_addon_api_key']->value; ?>" 
+								placeholder="This doesn't work"/>
+						</td>
+					</tr>
+				</table>
+			</div>
+
 		</div>
 
 	<? }
@@ -161,23 +173,30 @@ class JSJCodeHighlightGithubAddon {
 		
 		// List all posiblities for this shortcode, for future reference
 		extract( shortcode_atts( array(
-			'type' => false,    // gist, repo
-			'id' => false, // gist id
-			'repo' => false,    // path to file in repo
-			'path' => false,    // path to file in repo
+			'type'  => false,    // gist, repo
+			'id'    => false, // gist id
+			'repo'  => false,    // path to file in repo
+			'path'  => false,    // path to file in repo
 			'lines' => false,   // hypehn separated values for lines 7-10
 		), $atts ) );
 
 		// Make API Call
 		if($type == "gist" && $id != false){
+			
 			$response =  $this->api->get_gist($id); 
+			echo json_encode($response);
 		}
-		else if($type == "repo" && $repo != false && $path != false){
+		elseif($type == "repo" && $repo != false && $path != false){
+			
 			$response =  $this->api->get_single_file_in_repo($repo, $path);
+			echo json_encode($response);
 		}
 		else {
+			echo json_encode("No Response");
 			return "<!-- JSJ Code Highlight Github Addon : Not enough parameters provided to make an API call. Check you have all the necessary paramters set in your shortcode -->";
 		}
+
+		
 
 		// Parse Response into HTML
 		if($response->response == "success"){
